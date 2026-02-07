@@ -52,4 +52,4 @@ O projeto permite:
 - Alterar título de todas as postagens:
 
 ```bash
-php artisan posts:update-title "Novo Título"
+php artisan posts:update-title noweb

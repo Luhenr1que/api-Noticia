@@ -19,17 +19,19 @@ class PostController extends Controller
         if ($request->has('tag') && $request->tag) {
             $query->where('tag', 'like', "%{$request->tag}%");
         }
+        
         if ($request->has('title') && $request->title) {
             $query->where('title', 'like', "%{$request->title}%");
         }
 
-        $posts = $query->orderBy('created_at', 'desc')->paginate(10);
-
+        $posts = $query->orderBy('created_at', 'desc')->paginate(9);
         return response()->json($posts);
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Post::class);
+
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'tag' => 'required|string|max:255',
@@ -53,14 +55,20 @@ class PostController extends Controller
     public function show($id)
     {
         $post = Post::with(['category', 'user'])->findOrFail($id);
+        
+        $this->authorize('view', $post);
 
         return response()->json($post);
     }
 
     public function update(Request $request, Post $post)
     {
+        $this->authorize('update', $post);
+
         $data = $request->validate([
             'title' => 'required|string|max:255',
+            'tag' => 'required|string|max:255',
+            'summary' => 'required|string',
             'content' => 'required|string',
             'category_id' => 'required|exists:categories,id',
         ]);
@@ -72,7 +80,12 @@ class PostController extends Controller
 
     public function destroy(Post $post)
     {
+        $this->authorize('delete', $post);
+
         $post->delete();
-        return response()->json(['message' => 'Post deletado com sucesso']);
+        
+        return response()->json([
+            'message' => 'Post deletado com sucesso'
+        ]);
     }
 }

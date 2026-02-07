@@ -36,7 +36,7 @@
         </div>
     </div>
 
-    <button id="new-post-btn" style="margin-bottom: 16px;">Nova Notícia</button>
+    <button id="new-post-btn" style="margin-bottom: 16px;">+</button>
 
     <div id="createPostModal" class="modal">
         <div class="modal-content">
@@ -49,11 +49,7 @@
                 <textarea id="post-content" placeholder="Conteúdo completo" required
                     style="width: 100%; margin-bottom: 10px; padding: 8px;"></textarea>
                 <select id="post-category" required style="width: 100%; margin-bottom: 10px; padding: 8px;">
-                    <option value="0" disabled selected>Categorias</option>
-                    <option value="1">Tecnologia</option>
-                    <option value="2">Esportes</option>
-                    <option value="3">Política</option>
-                    <option value="4">Entretenimento</option>
+                    <option value="" disabled selected>Carregando categorias...</option>
                 </select>
                 <textarea id="post-tag" placeholder="Tag" required style="width: 100%; margin-bottom: 10px; padding: 8px;"></textarea>
                 <button type="submit">Criar</button>
@@ -64,10 +60,6 @@
     <div id="filters" style="margin-bottom: 20px;">
         <select id="filter-category">
             <option value="">Todas as categorias</option>
-            <option value="1">Tecnologia</option>
-            <option value="2">Esportes</option>
-            <option value="3">Política</option>
-            <option value="4">Entretenimento</option>
         </select>
 
         <input type="text" id="filter-tag" placeholder="Tag" style="margin-left: 10px;">
