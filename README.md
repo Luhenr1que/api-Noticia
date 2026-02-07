@@ -17,7 +17,7 @@ O projeto permite:
 - PHP 8.x
 - Laravel 10.x
 - Laravel Sanctum (autenticação via token Bearer)
-- MySQL / MariaDB
+- MySQL
 - Blade + Vanilla JavaScript
 - HTML5 e CSS3
 
