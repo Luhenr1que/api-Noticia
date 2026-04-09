@@ -7,6 +7,14 @@ use App\Http\Controllers\Api\PostController;
 
 use Illuminate\Support\Facades\Artisan;
 
+Route::get('/run-seeder', function () {
+    Artisan::call('db:seed');
+
+    return response()->json([
+        'message' => 'Seeder executado com sucesso!'
+    ]);
+});
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
