@@ -11,7 +11,9 @@ const passwordInput = document.getElementById('password');
 const form = document.getElementById('auth-form');
 const msg = document.getElementById('msg');
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+// CORREÇÃO AQUI: Removemos o 127.0.0.1 fixo. 
+// Usamos caminhos relativos para que o navegador use o domínio atual (onrender.com)
+const API_BASE = '/api'; 
 
 function updateFormState() {
     if (isLogin) {
@@ -149,7 +151,6 @@ async function handleSubmit(e) {
     const url = isLogin ? `${API_BASE}/login` : `${API_BASE}/register`;
 
     try {
-
         showMessage('Processando sua solicitação...', 'loading');
 
         const response = await fetch(url, {
@@ -164,7 +165,6 @@ async function handleSubmit(e) {
         const data = await response.json();
 
         if (!response.ok) {
-
             if (data.errors) {
                 Object.keys(data.errors).forEach(key => {
                     let input;
@@ -203,7 +203,7 @@ async function handleSubmit(e) {
 
     } catch (err) {
         console.error('Erro na autenticação:', err);
-        showMessage('Erro de conexão. Verifique sua internet e tente novamente.', 'error');
+        showMessage('Erro de conexão com o servidor.', 'error');
         submitBtn.disabled = false;
         submitBtn.innerHTML = isLogin ? 'Entrar' : 'Registrar';
     }
@@ -212,17 +212,14 @@ async function handleSubmit(e) {
 function checkExistingAuth() {
     const token = localStorage.getItem('token');
     if (token) {
-        
         window.location.href = '/';
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    
     checkExistingAuth();
 
     toggleBtn.onclick = toggleAuthMode;
-
     form.onsubmit = handleSubmit;
 
     const inputs = [nameInput, emailInput, passwordInput, confirmInput];
@@ -238,14 +235,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.querySelector('.auth-container').style.opacity = '0';
-    document.querySelector('.auth-container').style.transform = 'translateY(20px)';
-    document.querySelector('.auth-container').style.transition = 'all 0.5s ease';
-    
-    setTimeout(() => {
-        document.querySelector('.auth-container').style.opacity = '1';
-        document.querySelector('.auth-container').style.transform = 'translateY(0)';
-    }, 100);
+    // Animação de entrada
+    const container = document.querySelector('.auth-container');
+    if(container) {
+        container.style.opacity = '0';
+        container.style.transform = 'translateY(20px)';
+        container.style.transition = 'all 0.5s ease';
+        
+        setTimeout(() => {
+            container.style.opacity = '1';
+            container.style.transform = 'translateY(0)';
+        }, 100);
+    }
 
     if (isLogin) {
         emailInput.focus();
