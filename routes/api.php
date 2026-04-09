@@ -29,11 +29,3 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 });
 
-Route::get('/rodar-migrations', function () {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return "Migrações executadas com sucesso: " . Artisan::output();
-    } catch (\Exception $e) {
-        return "Erro ao rodar migrações: " . $e->getMessage();
-    }
-});
