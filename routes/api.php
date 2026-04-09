@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
 
+use Illuminate\Support\Facades\Artisan;
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -25,4 +27,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{category}', [CategoryController::class, 'update']);
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
+});
+
+Route::get('/rodar-migrations', function () {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return "Migrações executadas com sucesso: " . Artisan::output();
+    } catch (\Exception $e) {
+        return "Erro ao rodar migrações: " . $e->getMessage();
+    }
 });
