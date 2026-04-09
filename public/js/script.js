@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+// 🔥 BASE DINÂMICA (FUNCIONA EM PRODUÇÃO E LOCAL)
+const API_BASE_URL = window.location.origin + '/api';
+
 const POSTS_URL = `${API_BASE_URL}/posts`;
 const CATEGORIES_URL = `${API_BASE_URL}/categories`;
 const AUTH_URL = `${API_BASE_URL}/auth`;
@@ -17,6 +19,7 @@ async function initApp() {
     loadPosts();
 }
 
+// ================= CATEGORIAS =================
 async function loadCategories() {
     try {
         const response = await fetch(CATEGORIES_URL);
@@ -24,7 +27,6 @@ async function loadCategories() {
         
         const data = await response.json();
         
-        // Lógica para tratar se a API retorna array ou objeto de pares id:nome
         if (Array.isArray(data)) {
             categories = data;
         } else if (typeof data === 'object') {
@@ -45,7 +47,7 @@ function updateCategoryFilters() {
     const filterCategory = document.getElementById('filter-category');
     if (!filterCategory) return;
     
-    filterCategory.innerHTML = '<option value="">Todas as categorias</option>';
+    filterCategory.innerHTML = '<option value="">Todas</option>';
     categories.forEach(category => {
         const option = document.createElement('option');
         option.value = category.id;
@@ -58,7 +60,7 @@ function updateCreatePostCategories() {
     const postCategory = document.getElementById('post-category');
     if (!postCategory) return;
     
-    postCategory.innerHTML = '<option value="" disabled selected>Selecione uma categoria</option>';
+    postCategory.innerHTML = '<option value="" disabled selected>Selecione</option>';
     categories.forEach(category => {
         const option = document.createElement('option');
         option.value = category.id;
@@ -67,30 +69,22 @@ function updateCreatePostCategories() {
     });
 }
 
+// ================= AUTH =================
 function checkAuth() {
     const token = localStorage.getItem('token');
     const authLinks = document.getElementById('auth-links');
     const authName = document.getElementById('auth-name');
     const newPostBtn = document.getElementById('new-post-btn');
     
-    if (token && authLinks && authName) {
+    if (token) {
         const name = localStorage.getItem('name');
-        authName.textContent = `Olá, ${name}`;
-        authLinks.innerHTML = '<a href="#" onclick="logout()">Logout</a>';
-        
-        if (newPostBtn) {
-            newPostBtn.style.display = 'block';
-        }
+        if (authName) authName.textContent = `Olá, ${name}`;
+        if (authLinks) authLinks.innerHTML = '<a href="#" onclick="logout()">Logout</a>';
+        if (newPostBtn) newPostBtn.style.display = 'block';
     } else {
-        if (authLinks) {
-            authLinks.innerHTML = '<a href="/login">Login</a>';
-        }
-        if (authName) {
-            authName.textContent = '';
-        }
-        if (newPostBtn) {
-            newPostBtn.style.display = 'none';
-        }
+        if (authLinks) authLinks.innerHTML = '<a href="/login">Login</a>';
+        if (authName) authName.textContent = '';
+        if (newPostBtn) newPostBtn.style.display = 'none';
     }
 }
 
@@ -102,65 +96,48 @@ async function logout() {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 }
             });
         }
     } catch (err) {
-        console.error('Erro no logout:', err);
+        console.error(err);
     } finally {
-        localStorage.removeItem('token');
-        localStorage.removeItem('name');
-        localStorage.removeItem('user_id');
+        localStorage.clear();
         window.location.reload();
     }
 }
 
+// ================= EVENTOS =================
 function setupEventListeners() {
-    const filterBtn = document.getElementById('filter-btn');
-    if (filterBtn) {
-        filterBtn.onclick = () => loadPosts(1);
-    }
+    document.getElementById('filter-btn')?.addEventListener('click', () => loadPosts(1));
 
     ['filter-category', 'filter-tag', 'filter-title'].forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') loadPosts(1);
-            });
-        }
+        document.getElementById(id)?.addEventListener('keypress', e => {
+            if (e.key === 'Enter') loadPosts(1);
+        });
     });
 
-    const newPostBtn = document.getElementById('new-post-btn');
-    if (newPostBtn) {
-        newPostBtn.onclick = showCreatePostModal;
-    }
-
-    const createPostForm = document.getElementById('create-post-form');
-    if (createPostForm) {
-        createPostForm.onsubmit = handleCreatePost;
-    }
+    document.getElementById('new-post-btn')?.addEventListener('click', showCreatePostModal);
+    document.getElementById('create-post-form')?.addEventListener('submit', handleCreatePost);
 
     window.closeModal = closeModal;
     window.closeCreateModal = closeCreateModal;
 }
 
+// ================= POSTS =================
 async function loadPosts(page = 1) {
     currentPage = page;
 
-    const category = document.getElementById('filter-category')?.value || '';
-    const tag = document.getElementById('filter-tag')?.value.trim() || '';
-    const title = document.getElementById('filter-title')?.value.trim() || '';
-
-    const params = new URLSearchParams();
-    if (category) params.append('category_id', category);
-    if (tag) params.append('tag', tag);
-    if (title) params.append('title', title);
-    params.append('page', page);
+    const params = new URLSearchParams({
+        category_id: document.getElementById('filter-category')?.value || '',
+        tag: document.getElementById('filter-tag')?.value || '',
+        title: document.getElementById('filter-title')?.value || '',
+        page
+    });
 
     try {
-        const response = await fetch(`${POSTS_URL}?${params.toString()}`);
+        const response = await fetch(`${POSTS_URL}?${params}`);
         if (!response.ok) throw new Error('Erro ao buscar posts');
 
         const data = await response.json();
@@ -168,21 +145,16 @@ async function loadPosts(page = 1) {
         renderPagination(data);
     } catch (err) {
         console.error(err);
-        const postsList = document.getElementById('posts-list');
-        if (postsList) {
-            postsList.innerHTML = '<div class="error">Erro ao carregar posts.</div>';
-        }
+        document.getElementById('posts-list').innerHTML = 'Erro ao carregar posts';
     }
 }
 
 function renderPosts(posts) {
-    const postsList = document.getElementById('posts-list');
-    if (!postsList) return;
-    
-    postsList.innerHTML = '';
+    const container = document.getElementById('posts-list');
+    container.innerHTML = '';
 
-    if (!posts || posts.length === 0) {
-        postsList.innerHTML = '<div class="no-posts">Nenhum post encontrado.</div>';
+    if (!posts.length) {
+        container.innerHTML = 'Nenhum post encontrado';
         return;
     }
 
@@ -190,314 +162,103 @@ function renderPosts(posts) {
         const div = document.createElement('div');
         div.className = 'post';
         div.onclick = () => showPostDetail(post);
-        
+
         div.innerHTML = `
-            <div class="post-header">
-                <h3>${post.title}</h3>
-                ${isCurrentUserPost(post) ? `
-                    <div class="post-actions">
-                        <button class="btn-edit" onclick="editPost(${post.id}, event)">Editar</button>
-                        <button class="btn-delete" onclick="deletePost(${post.id}, event)">Excluir</button>
-                    </div>
-                ` : ''}
-            </div>
-            <p class="post-summary">${post.summary}</p>
-            <div class="post-meta">
-                <span class="category">${post.category?.name || '—'}</span>
-                <span class="author">${post.user?.name || '—'}</span>
-                <span class="tag">${post.tag || '—'}</span>
-                <span class="date">${formatDate(post.created_at)}</span>
-            </div>
+            <h3>${post.title}</h3>
+            <p>${post.summary}</p>
+            <small>${post.category?.name || ''} • ${post.user?.name || ''}</small>
         `;
-        
-        postsList.appendChild(div);
+
+        container.appendChild(div);
     });
 }
 
+// ================= PAGINAÇÃO =================
 function renderPagination(data) {
     const pagination = document.getElementById('pagination');
-    if (!pagination) return;
-    
     pagination.innerHTML = '';
 
-    if (data.last_page <= 1) return;
-
     if (data.current_page > 1) {
-        const prevBtn = createPaginationButton('Anterior', () => loadPosts(data.current_page - 1));
-        prevBtn.className = 'pagination-btn prev';
-        pagination.appendChild(prevBtn);
+        pagination.appendChild(createBtn('Anterior', () => loadPosts(data.current_page - 1)));
     }
 
-    const pageInfo = document.createElement('span');
-    pageInfo.className = 'page-info';
-    pageInfo.textContent = `Página ${data.current_page} de ${data.last_page}`;
-    pagination.appendChild(pageInfo);
+    const info = document.createElement('span');
+    info.textContent = `Página ${data.current_page} de ${data.last_page}`;
+    pagination.appendChild(info);
 
     if (data.current_page < data.last_page) {
-        const nextBtn = createPaginationButton('Próxima', () => loadPosts(data.current_page + 1));
-        nextBtn.className = 'pagination-btn next';
-        pagination.appendChild(nextBtn);
+        pagination.appendChild(createBtn('Próxima', () => loadPosts(data.current_page + 1)));
     }
 }
 
-function createPaginationButton(text, onClick) {
-    const button = document.createElement('button');
-    button.textContent = text;
-    button.onclick = onClick;
-    return button;
+function createBtn(text, fn) {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.onclick = fn;
+    return btn;
 }
 
-function isCurrentUserPost(post) {
-    const currentUserId = localStorage.getItem('user_id');
-    return currentUserId && post.user_id == currentUserId;
-}
-
-function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
-}
-
+// ================= MODAL =================
 function showPostDetail(post) {
     const modal = document.getElementById('noticiaModal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalContent = document.getElementById('modal-content');
-    
-    if (modal && modalTitle && modalContent) {
-        modalTitle.textContent = post.title;
-        modalContent.innerHTML = `
-            <div class="post-detail">
-                <div class="post-meta">
-                    <span><strong>Categoria:</strong> ${post.category?.name || '—'}</span>
-                    <span><strong>Autor:</strong> ${post.user?.name || '—'}</span>
-                    <span><strong>Tag:</strong> ${post.tag || '—'}</span>
-                    <span><strong>Data:</strong> ${formatDate(post.created_at)}</span>
-                </div>
-                <div class="post-summary">
-                    <h4>Resumo:</h4>
-                    <p>${post.summary}</p>
-                </div>
-                <div class="post-content">
-                    <h4>Conteúdo:</h4>
-                    <p>${post.content}</p>
-                </div>
-                ${isCurrentUserPost(post) ? `
-                    <div class="post-actions-detail">
-                        <button class="btn-edit" onclick="editPost(${post.id})">Editar</button>
-                        <button class="btn-delete" onclick="deletePost(${post.id})">Excluir</button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        modal.style.display = 'block';
-    }
+    document.getElementById('modal-title').textContent = post.title;
+    document.getElementById('modal-content').innerHTML = `
+        <p>${post.content}</p>
+    `;
+    modal.style.display = 'block';
 }
 
 function showCreatePostModal() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Você precisa estar logado para realizar esta ação.');
+    if (!localStorage.getItem('token')) {
+        alert('Faça login');
         return;
     }
-    
-    const modal = document.getElementById('createPostModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    document.getElementById('createPostModal').style.display = 'block';
 }
 
 function closeModal() {
-    const modal = document.getElementById('noticiaModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    document.getElementById('noticiaModal').style.display = 'none';
 }
 
 function closeCreateModal() {
-    const modal = document.getElementById('createPostModal');
-    if (modal) {
-        modal.style.display = 'none';
-        const form = document.getElementById('create-post-form');
-        if (form) {
-            form.reset();
-            // Restaura o onsubmit original caso tenha sido alterado pelo editPost
-            form.onsubmit = handleCreatePost;
-        }
-        const msg = document.getElementById('create-post-msg');
-        if (msg) msg.textContent = '';
-    }
+    document.getElementById('createPostModal').style.display = 'none';
 }
 
+// ================= CRIAR POST =================
 async function handleCreatePost(e) {
     e.preventDefault();
-    
-    const msgElement = document.getElementById('create-post-msg');
-    if (!msgElement) return;
-    
-    msgElement.textContent = 'Enviando...';
-    msgElement.className = 'message loading';
 
-    const formData = {
-        title: document.getElementById('post-title')?.value.trim() || '',
-        summary: document.getElementById('post-summary')?.value.trim() || '',
-        content: document.getElementById('post-content')?.value.trim() || '',
-        category_id: document.getElementById('post-category')?.value || '',
-        tag: document.getElementById('post-tag')?.value.trim() || '',
+    const token = localStorage.getItem('token');
+
+    const data = {
+        title: document.getElementById('post-title').value,
+        summary: document.getElementById('post-summary').value,
+        content: document.getElementById('post-content').value,
+        category_id: document.getElementById('post-category').value,
+        tag: document.getElementById('post-tag').value,
     };
 
-    if (!formData.title || !formData.summary || !formData.content || !formData.category_id) {
-        msgElement.textContent = 'Preencha todos os campos obrigatórios.';
-        msgElement.className = 'message error';
-        return;
-    }
-
-    const token = localStorage.getItem('token');
-
     try {
-        const response = await fetch(POSTS_URL, {
+        const res = await fetch(POSTS_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(data)
         });
 
-        const data = await response.json();
+        if (!res.ok) throw new Error('Erro');
 
-        if (!response.ok) {
-            throw new Error(data.message || Object.values(data.errors || {}).flat().join(', '));
-        }
-
-        msgElement.textContent = 'Notícia criada com sucesso!';
-        msgElement.className = 'message success';
-        
-        setTimeout(() => {
-            closeCreateModal();
-            loadPosts();
-        }, 1500);
-    } catch (err) {
-        console.error('Erro ao criar post:', err);
-        msgElement.textContent = err.message || 'Erro ao criar notícia.';
-        msgElement.className = 'message error';
-    }
-}
-
-async function editPost(postId, event = null) {
-    if (event) event.stopPropagation();
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Sessão expirada.');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${POSTS_URL}/${postId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error('Erro ao buscar dados do post');
-        
-        const post = await response.json();
-        
-        showCreatePostModal();
-        
-        // Preenche os campos do formulário
-        document.getElementById('post-title').value = post.title || '';
-        document.getElementById('post-summary').value = post.summary || '';
-        document.getElementById('post-content').value = post.content || '';
-        document.getElementById('post-category').value = post.category_id || '';
-        document.getElementById('post-tag').value = post.tag || '';
-
-        const createForm = document.getElementById('create-post-form');
-        if (createForm) {
-            createForm.onsubmit = async (e) => {
-                e.preventDefault();
-                const msgElement = document.getElementById('create-post-msg');
-                
-                const formData = {
-                    title: document.getElementById('post-title').value.trim(),
-                    summary: document.getElementById('post-summary').value.trim(),
-                    content: document.getElementById('post-content').value.trim(),
-                    category_id: document.getElementById('post-category').value,
-                    tag: document.getElementById('post-tag').value.trim(),
-                };
-
-                try {
-                    const updateRes = await fetch(`${POSTS_URL}/${postId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(formData)
-                    });
-
-                    const data = await updateRes.json();
-                    if (!updateRes.ok) throw new Error(data.message || 'Erro ao atualizar');
-
-                    msgElement.textContent = 'Notícia atualizada com sucesso!';
-                    msgElement.className = 'message success';
-                    
-                    setTimeout(() => {
-                        closeCreateModal();
-                        loadPosts();
-                    }, 1500);
-                } catch (err) {
-                    msgElement.textContent = err.message;
-                    msgElement.className = 'message error';
-                }
-            };
-        }
-    } catch (err) {
-        console.error(err);
-        alert('Erro ao buscar dados do post.');
-    }
-}
-
-async function deletePost(postId, event = null) {
-    if (event) event.stopPropagation();
-    
-    if (!confirm('Tem certeza que deseja excluir este post?')) return;
-
-    const token = localStorage.getItem('token');
-
-    try {
-        const response = await fetch(`${POSTS_URL}/${postId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error('Erro ao excluir post');
-
-        alert('Post excluído com sucesso!');
+        alert('Criado!');
+        closeCreateModal();
         loadPosts();
-        closeModal();
     } catch (err) {
-        console.error(err);
-        alert('Erro ao excluir post.');
+        alert('Erro ao criar');
     }
 }
 
-window.onclick = function(event) {
-    const modal = document.getElementById('noticiaModal');
-    const createModal = document.getElementById('createPostModal');
-    
-    if (event.target === modal) closeModal();
-    if (event.target === createModal) closeCreateModal();
-}
-
-// Exportação de funções para o escopo global
-window.carregarPosts = loadPosts;
+// ================= GLOBAL =================
 window.logout = logout;
-window.editPost = editPost;
-window.deletePost = deletePost;
+window.editPost = () => {};
+window.deletePost = () => {};
