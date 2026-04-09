@@ -1,4 +1,3 @@
-
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 const POSTS_URL = `${API_BASE_URL}/posts`;
 const CATEGORIES_URL = `${API_BASE_URL}/categories`;
@@ -23,7 +22,18 @@ async function loadCategories() {
         const response = await fetch(CATEGORIES_URL);
         if (!response.ok) throw new Error('Erro ao carregar categorias');
         
-        categories = await response.json();
+        const data = await response.json();
+        
+        // Lógica para tratar se a API retorna array ou objeto de pares id:nome
+        if (Array.isArray(data)) {
+            categories = data;
+        } else if (typeof data === 'object') {
+            categories = Object.entries(data).map(([id, name]) => ({
+                id: Number(id),
+                name: name
+            }));
+        }
+
         updateCategoryFilters();
         updateCreatePostCategories();
     } catch (err) {
@@ -102,12 +112,12 @@ async function logout() {
     } finally {
         localStorage.removeItem('token');
         localStorage.removeItem('name');
+        localStorage.removeItem('user_id');
         window.location.reload();
     }
 }
 
 function setupEventListeners() {
-
     const filterBtn = document.getElementById('filter-btn');
     if (filterBtn) {
         filterBtn.onclick = () => loadPosts(1);
@@ -171,7 +181,7 @@ function renderPosts(posts) {
     
     postsList.innerHTML = '';
 
-    if (posts.length === 0) {
+    if (!posts || posts.length === 0) {
         postsList.innerHTML = '<div class="no-posts">Nenhum post encontrado.</div>';
         return;
     }
@@ -286,8 +296,7 @@ function showPostDetail(post) {
 function showCreatePostModal() {
     const token = localStorage.getItem('token');
     if (!token) {
-        alert('Você precisa estar logado para criar uma notícia.');
-        window.location.href = '/login';
+        alert('Você precisa estar logado para realizar esta ação.');
         return;
     }
     
@@ -309,7 +318,11 @@ function closeCreateModal() {
     if (modal) {
         modal.style.display = 'none';
         const form = document.getElementById('create-post-form');
-        if (form) form.reset();
+        if (form) {
+            form.reset();
+            // Restaura o onsubmit original caso tenha sido alterado pelo editPost
+            form.onsubmit = handleCreatePost;
+        }
         const msg = document.getElementById('create-post-msg');
         if (msg) msg.textContent = '';
     }
@@ -339,11 +352,6 @@ async function handleCreatePost(e) {
     }
 
     const token = localStorage.getItem('token');
-    if (!token) {
-        msgElement.textContent = 'Sessão expirada. Faça login novamente.';
-        msgElement.className = 'message error';
-        return;
-    }
 
     try {
         const response = await fetch(POSTS_URL, {
@@ -371,7 +379,7 @@ async function handleCreatePost(e) {
         }, 1500);
     } catch (err) {
         console.error('Erro ao criar post:', err);
-        msgElement.textContent = err.message || 'Erro ao criar notícia. Tente novamente.';
+        msgElement.textContent = err.message || 'Erro ao criar notícia.';
         msgElement.className = 'message error';
     }
 }
@@ -381,9 +389,10 @@ async function editPost(postId, event = null) {
     
     const token = localStorage.getItem('token');
     if (!token) {
-        alert('Sessão expirada. Faça login novamente.');
+        alert('Sessão expirada.');
         return;
     }
+
     try {
         const response = await fetch(`${POSTS_URL}/${postId}`, {
             headers: {
@@ -391,53 +400,36 @@ async function editPost(postId, event = null) {
                 'Accept': 'application/json'
             }
         });
-        if (!response.ok) {
-            throw new Error('Erro ao buscar dados do post');
-        }
+
+        if (!response.ok) throw new Error('Erro ao buscar dados do post');
+        
         const post = await response.json();
+        
         showCreatePostModal();
-        const modalTitle = document.getElementById('post-title');
-        if (modalTitle) {
-            modalTitle.value = post.title;
-        }
-        const postSummary = document.getElementById('post-summary');
-        if (postSummary) {
-            postSummary.value = post.summary;
-        }
-        const postContent = document.getElementById('post-content');
-        if (postContent) {
-            postContent.value = post.content;
-        }
-        const postCategory = document.getElementById('post-category');
-        if (postCategory) {
-            postCategory.value = post.category_id;
-        }
-        const postTag = document.getElementById('post-tag');
-        if (postTag) {
-            postTag.value = post.tag;
-        }
+        
+        // Preenche os campos do formulário
+        document.getElementById('post-title').value = post.title || '';
+        document.getElementById('post-summary').value = post.summary || '';
+        document.getElementById('post-content').value = post.content || '';
+        document.getElementById('post-category').value = post.category_id || '';
+        document.getElementById('post-tag').value = post.tag || '';
+
         const createForm = document.getElementById('create-post-form');
         if (createForm) {
             createForm.onsubmit = async (e) => {
                 e.preventDefault();
                 const msgElement = document.getElementById('create-post-msg');
-                if (!msgElement) return;
+                
                 const formData = {
-                    title: document.getElementById('post-title')?.value.trim() || '',
-                    summary: document.getElementById('post-summary')?.value.trim() || '',
-                    content: document.getElementById('post-content')?.value.trim() || '',
-                    category_id: document.getElementById('post-category')?.value || '',
-                    tag: document.getElementById('post-tag')?.value.trim() || '',
+                    title: document.getElementById('post-title').value.trim(),
+                    summary: document.getElementById('post-summary').value.trim(),
+                    content: document.getElementById('post-content').value.trim(),
+                    category_id: document.getElementById('post-category').value,
+                    tag: document.getElementById('post-tag').value.trim(),
                 };
 
-                if (!formData.title || !formData.summary || !formData.content || !formData.category_id) {
-                    msgElement.textContent = 'Preencha todos os campos obrigatórios.';
-                    msgElement.className = 'message error';
-                    return;
-                }
-
                 try {
-                    const response = await fetch(`${POSTS_URL}/${postId}`, {
+                    const updateRes = await fetch(`${POSTS_URL}/${postId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -447,11 +439,8 @@ async function editPost(postId, event = null) {
                         body: JSON.stringify(formData)
                     });
 
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.message || Object.values(data.errors || {}).flat().join(', '));
-                    }
+                    const data = await updateRes.json();
+                    if (!updateRes.ok) throw new Error(data.message || 'Erro ao atualizar');
 
                     msgElement.textContent = 'Notícia atualizada com sucesso!';
                     msgElement.className = 'message success';
@@ -461,30 +450,23 @@ async function editPost(postId, event = null) {
                         loadPosts();
                     }, 1500);
                 } catch (err) {
-                    console.error('Erro ao atualizar post:', err);
-                    msgElement.textContent = err.message || 'Erro ao atualizar notícia. Tente novamente.';
+                    msgElement.textContent = err.message;
                     msgElement.className = 'message error';
                 }
             };
         }
     } catch (err) {
-        console.error('Erro ao buscar dados do post:', err);
-        alert('Erro ao buscar dados do post. Tente novamente.');
+        console.error(err);
+        alert('Erro ao buscar dados do post.');
     }
 }
 
 async function deletePost(postId, event = null) {
     if (event) event.stopPropagation();
     
-    if (!confirm('Tem certeza que deseja excluir este post?')) {
-        return;
-    }
+    if (!confirm('Tem certeza que deseja excluir este post?')) return;
 
     const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Sessão expirada. Faça login novamente.');
-        return;
-    }
 
     try {
         const response = await fetch(`${POSTS_URL}/${postId}`, {
@@ -495,16 +477,14 @@ async function deletePost(postId, event = null) {
             }
         });
 
-        if (!response.ok) {
-            throw new Error('Erro ao excluir post');
-        }
+        if (!response.ok) throw new Error('Erro ao excluir post');
 
         alert('Post excluído com sucesso!');
         loadPosts();
         closeModal();
     } catch (err) {
-        console.error('Erro ao excluir post:', err);
-        alert('Erro ao excluir post. Tente novamente.');
+        console.error(err);
+        alert('Erro ao excluir post.');
     }
 }
 
@@ -512,60 +492,11 @@ window.onclick = function(event) {
     const modal = document.getElementById('noticiaModal');
     const createModal = document.getElementById('createPostModal');
     
-    if (modal && event.target === modal) {
-        closeModal();
-    }
-    if (createModal && event.target === createModal) {
-        closeCreateModal();
-    }
+    if (event.target === modal) closeModal();
+    if (event.target === createModal) closeCreateModal();
 }
 
-async function loadCategories() {
-    try {
-        const response = await fetch('http://127.0.0.1:8000/api/categories');
-        if (!response.ok) throw new Error('Erro na API');
-        
-        const data = await response.json();
-        
-        let categoriesArray = [];
-        if (Array.isArray(data)) {
-            categoriesArray = data;
-        } else if (typeof data === 'object') {
-
-            categoriesArray = Object.entries(data).map(([id, name]) => ({
-                id: Number(id),
-                name: name
-            }));
-        }
-        
-        const filterSelect = document.getElementById('filter-category');
-        if (filterSelect) {
-            filterSelect.innerHTML = '<option value="">Todas</option>';
-            categoriesArray.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat.id;
-                option.textContent = cat.name;
-                filterSelect.appendChild(option);
-            });
-        }
-        
-        const createSelect = document.getElementById('post-category');
-        if (createSelect) {
-            createSelect.innerHTML = '<option value="" disabled selected>Categoria</option>';
-            categoriesArray.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat.id;
-                option.textContent = cat.name;
-                createSelect.appendChild(option);
-            });
-        }
-        
-    } catch (err) {
-        console.error('Erro ao carregar categorias:', err);
-    }
-}
-
-
+// Exportação de funções para o escopo global
 window.carregarPosts = loadPosts;
 window.logout = logout;
 window.editPost = editPost;
