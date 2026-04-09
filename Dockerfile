@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# 1. Instala dependências do sistema e Node.js (necessário para o Front)
+# 1. Instala dependências e extensões PHP
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
@@ -8,16 +8,11 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     git \
-    curl \
-    gnupg
-
-# Instala Node.js (versão 18 ou superior)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs
+    curl
 
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# 2. Habilita o mod_rewrite do Apache
+# 2. Habilita o mod_rewrite
 RUN a2enmod rewrite
 
 # 3. Instala o Composer
@@ -34,12 +29,7 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 # 5. Instala dependências do PHP
 RUN composer install --no-dev --optimize-autoloader
 
-# 6. COMPILA O FRONT-END (O que estava faltando)
-# Isso gera os arquivos dentro de public/build
-RUN npm install
-RUN npm run build
-
-# 7. Permissões
+# 6. Permissões
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 EXPOSE 80
